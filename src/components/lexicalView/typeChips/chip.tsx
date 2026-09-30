@@ -55,3 +55,4 @@ export const Chip = ({ token }: ChipProps) => {
     </div>
   );
 };
+
