@@ -8,7 +8,7 @@ import {
   sections,
 } from "@/constants/ASSEMBLY";
 import { getNumberType, type NumberType } from "@/utils/numerificador";
- 
+
 export type TokenType =
   | "COMMENT"
   | "LABEL"
@@ -23,7 +23,7 @@ export type TokenType =
   | "VARIABLE"
   | "SECTION"
   | "UNKNOWN";
- 
+
 export interface Token {
   type: TokenType;
   start: number;
@@ -31,27 +31,27 @@ export interface Token {
   value: string;
   numberType?: NumberType;
 }
- 
+
 export const tokenizer = (code: string): Token[] => {
   const tokens: Token[] = [];
- 
+
   // 1: COMMENTS, 2: LABELS, 3: NUMBERS (lexema completo que empieza con dígito),
   // 4: WORDS, 5: NEWLINE, 6: WHITESPACES, 7: UNKNOWN
   const regex =
     /(;.*)|([a-zA-Z_]\w*:)|(\b[0-9]\w*\b)|(\.?[a-zA-Z_]\w*)|(\r?\n)+|(\t| )+|(.)/g;
- 
+
   let match: RegExpExecArray | null;
- 
+
   while ((match = regex.exec(code)) !== null) {
     const value = match[0];
     const value_upper = value.toUpperCase();
- 
+
     const start = match.index;
     const end = start + value.length;
- 
+
     let type: TokenType = "UNKNOWN";
     let numberType: NumberType | undefined;
- 
+
     if (match[1]) {
       type = "COMMENT";
     } else if (match[2]) {
@@ -59,21 +59,21 @@ export const tokenizer = (code: string): Token[] => {
     } else if (match[3]) {
       numberType = getNumberType(value) ?? undefined;
       type = numberType ? "NUMBER" : "UNKNOWN";
- 
+
       let i = tokens.length - 1;
       while (i >= 0 && tokens[i].type === "WHITESPACE") i--;
       const prev = i >= 0 ? tokens[i] : undefined;
- 
+
       if (prev?.type === "SECTION" && reserved.includes(value_upper)) {
         type = "RESERVED";
         numberType = undefined;
       }
     } else if (match[4]) {
       type = "VARIABLE";
- 
+
       if (value.startsWith(".")) {
         type = "UNKNOWN";
- 
+
         if (dotDirective.includes(value_upper)) {
           type = "DIRECTIVE";
         } else if (sections.includes(value_upper.slice(1))) {
@@ -105,29 +105,29 @@ export const tokenizer = (code: string): Token[] => {
     } else if (match[6]) {
       type = "WHITESPACE";
     }
- 
+
     tokens.push({ type, value, start, end, numberType });
   }
   return tokens;
 };
- 
+
 export const optimizedTokenizer = (code: string): Token[] => {
   const tokens = tokenizer(code);
   const optimizedTokens: Token[] = [];
- 
+
   for (const token of tokens) {
     if (token.type === "COMMENT") continue;
- 
+
     if (token.type === "NEWLINE") {
       const lastToken = optimizedTokens[optimizedTokens.length - 1];
- 
+
       if (lastToken && lastToken.type === "NEWLINE") {
         lastToken.value += token.value;
         lastToken.end = token.end;
         continue;
       }
     }
- 
+
     optimizedTokens.push(token);
   }
   return optimizedTokens;
