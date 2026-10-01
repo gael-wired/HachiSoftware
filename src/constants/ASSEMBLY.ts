@@ -47,8 +47,8 @@ export const dataType = [
   "REAL10",
 ];
 
-export const sections = ["CODE", "DATA"];
-export const dotDirective = [".DATA"];
+export const sections = [".CODE", ".DATA"];
+export const dotDirective = [".MODEL"];
 
 export const dataDirective = ["DB", "DW", "DD", "DQ", "DT"];
 
