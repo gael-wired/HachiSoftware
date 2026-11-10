@@ -1,5 +1,6 @@
 import { Token } from "@/utils/tokenizer";
 import { ReactNode } from "react";
+import { NUMBER_TYPE_LABELS } from "@/utils/numerificador";
 
 interface ChipDetailsProps {
   token: Token;
@@ -42,7 +43,8 @@ export const ChipDetails = ({
           <>
             <div className="mx-2 border-b border-[#fff3]" />
             <span className="text-[10px] inline">
-              <KeyType>number type:</KeyType> {token.numberType}
+              <KeyType>tipo de número:</KeyType>{" "}
+              {NUMBER_TYPE_LABELS[token.numberType]}
             </span>
           </>
         )}

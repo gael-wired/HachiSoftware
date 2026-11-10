@@ -20,7 +20,10 @@ const isEncodedReal = (digits: string): boolean =>
  
 export const getNumberType = (raw: string): NumberType | null => {
   const s = raw.toLowerCase();
- 
+
+  if (/^0x[0-9a-f]+$/.test(s)) return "HEXADECIMAL";
+  if (/^0b[01]+$/.test(s)) return "BINARY";
+  if (/^0o[0-7]+$/.test(s)) return "OCTAL";
   if (HEX.test(s)) return "HEXADECIMAL";
   if (BINARY.test(s)) return "BINARY";
   if (OCTAL.test(s)) return "OCTAL";

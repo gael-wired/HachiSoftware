@@ -1,7 +1,5 @@
 import "@testing-library/jest-dom";
-import { Token, TokenType, tokenizer } from "@/utils/tokenizer";
-
-import { render } from "@testing-library/react";
+import { tokenizer } from "@/utils/tokenizer";
 
 describe("Tokenizador", () => {
   it("debería retornar un arreglo vacío con una cadena vacía", () => {
@@ -36,7 +34,7 @@ describe("Tokenizador", () => {
         value: " ",
       },
       {
-        type: "VARIABLE",
+        type: "REGISTER",
         start: 4,
         end: 6,
         value: "ax",

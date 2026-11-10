@@ -26,8 +26,6 @@ export type TokenType =
   | "SECTION"
   | "UNKNOWN";
 
-export type NumberType = "decimal" | "binary" | "octal" | "hexadecimal";
-
 export interface Token {
   type: TokenType;
   start: number;
@@ -36,18 +34,7 @@ export interface Token {
   numberType?: NumberType;
 }
 
-const getNumberType = (value: string): NumberType => {
-  const number = value.toLowerCase();
-
-  if (number.endsWith("h")) return "hexadecimal";
-  if (number.endsWith("b")) return "binary";
-  if (number.endsWith("o") || number.endsWith("q")) return "octal";
-
-  return "decimal";
-};
-
 export const tokenizer = (code: string): Token[] => {
-  const tokens: Token[] = [];
   const tokens: Token[] = [];
 
   // Captures: comment, label, string, number, word, newline, whitespace, unknown.
@@ -64,7 +51,6 @@ export const tokenizer = (code: string): Token[] => {
     const end = start + value.length;
 
     let type: TokenType = "UNKNOWN";
-    let numberType: NumberType | undefined;
 
     if (match[1]) {
       type = "COMMENT";
@@ -77,8 +63,6 @@ export const tokenizer = (code: string): Token[] => {
 
       let i = tokens.length - 1;
       while (i >= 0 && tokens[i].type === "WHITESPACE") i--;
-      const prev = i >= 0 ? tokens[i] : undefined;
-
       if (tokens[i]?.type === "SECTION") {
         if (reserved.includes(value)) {
           type = "RESERVED";
@@ -92,7 +76,7 @@ export const tokenizer = (code: string): Token[] => {
 
         if (dotDirective.includes(value_upper)) {
           type = "DIRECTIVE";
-        } else if (sections.includes(value_upper.slice(1))) {
+        } else if (sections.includes(value_upper)) {
           type = "SECTION";
         }
       }
@@ -129,7 +113,9 @@ export const tokenizer = (code: string): Token[] => {
     }
 
     const token: Token = { type, value, start, end };
-    if (type === "NUMBER") token.numberType = getNumberType(value);
+    if (type === "NUMBER") {
+      token.numberType = getNumberType(value) ?? undefined;
+    }
     tokens.push(token);
   }
   return tokens;

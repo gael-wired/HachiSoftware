@@ -1,5 +1,5 @@
 import { TOKEN_CHIP_COLORS } from "@/constants/TOKEN_COLORS";
-import { TokenType, Token } from "@/utils/tokenizer";
+import type { Token } from "@/utils/tokenizer";
 import { useRef, useState } from "react";
 import { ChipDetails } from "./chipDetails";
 
@@ -55,4 +55,3 @@ export const Chip = ({ token }: ChipProps) => {
     </div>
   );
 };
-
