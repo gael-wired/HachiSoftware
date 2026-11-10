@@ -1,6 +1,7 @@
 import {
   dataDirective,
   dataType,
+  ioMacros,
   mnemonics,
   registers,
   reserved,
@@ -18,11 +19,14 @@ export type TokenType =
   | "TYPE"
   | "DIRECTIVE"
   | "MNEMONIC"
+  | "STRING"
   | "WHITESPACE"
   | "NEWLINE"
   | "VARIABLE"
   | "SECTION"
   | "UNKNOWN";
+
+export type NumberType = "decimal" | "binary" | "octal" | "hexadecimal";
 
 export interface Token {
   type: TokenType;
@@ -32,13 +36,23 @@ export interface Token {
   numberType?: NumberType;
 }
 
+const getNumberType = (value: string): NumberType => {
+  const number = value.toLowerCase();
+
+  if (number.endsWith("h")) return "hexadecimal";
+  if (number.endsWith("b")) return "binary";
+  if (number.endsWith("o") || number.endsWith("q")) return "octal";
+
+  return "decimal";
+};
+
 export const tokenizer = (code: string): Token[] => {
   const tokens: Token[] = [];
+  const tokens: Token[] = [];
 
-  // 1: COMMENTS, 2: LABELS, 3: NUMBERS (lexema completo que empieza con dígito),
-  // 4: WORDS, 5: NEWLINE, 6: WHITESPACES, 7: UNKNOWN
+  // Captures: comment, label, string, number, word, newline, whitespace, unknown.
   const regex =
-    /(;.*)|([a-zA-Z_]\w*:)|(\b[0-9]\w*\b)|(\.?[a-zA-Z_]\w*)|(\r?\n)+|(\t| )+|(.)/g;
+    /(;.*)|([a-zA-Z_]\w*:)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|[0-9][0-9a-fA-F]*[hqodbrtyHQODBRTY]?)\b)|(\.*[a-zA-Z_]\w*)|(\n)+|(\t| )+|(%include)|(.)/gi;
 
   let match: RegExpExecArray | null;
 
@@ -57,18 +71,20 @@ export const tokenizer = (code: string): Token[] => {
     } else if (match[2]) {
       type = "LABEL";
     } else if (match[3]) {
-      numberType = getNumberType(value) ?? undefined;
-      type = numberType ? "NUMBER" : "UNKNOWN";
+      type = "STRING";
+    } else if (match[4]) {
+      type = "NUMBER";
 
       let i = tokens.length - 1;
       while (i >= 0 && tokens[i].type === "WHITESPACE") i--;
       const prev = i >= 0 ? tokens[i] : undefined;
 
-      if (prev?.type === "SECTION" && reserved.includes(value_upper)) {
-        type = "RESERVED";
-        numberType = undefined;
+      if (tokens[i]?.type === "SECTION") {
+        if (reserved.includes(value)) {
+          type = "RESERVED";
+        }
       }
-    } else if (match[4]) {
+    } else if (match[5]) {
       type = "VARIABLE";
 
       if (value.startsWith(".")) {
@@ -100,19 +116,32 @@ export const tokenizer = (code: string): Token[] => {
       else if (reserved.includes(value_upper)) {
         type = "RESERVED";
       }
-    } else if (match[5]) {
-      type = "NEWLINE";
     } else if (match[6]) {
+      type = "NEWLINE";
+    } else if (match[7]) {
       type = "WHITESPACE";
+    } else if (match[8]) {
+      type = "DIRECTIVE";
+    } else if (match[9]) type = "UNKNOWN";
+
+    if (type === "VARIABLE" && ioMacros.includes(value_upper)) {
+      type = "RESERVED";
     }
 
-    tokens.push({ type, value, start, end, numberType });
+    const token: Token = { type, value, start, end };
+    if (type === "NUMBER") token.numberType = getNumberType(value);
+    tokens.push(token);
   }
   return tokens;
 };
 
 export const optimizedTokenizer = (code: string): Token[] => {
+  /**
+   * Devuelve una lista de tokens optimizados eliminando espacios en blanco y saltos de línea
+   */
+
   const tokens = tokenizer(code);
+
   const optimizedTokens: Token[] = [];
 
   for (const token of tokens) {

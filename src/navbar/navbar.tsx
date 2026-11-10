@@ -1,10 +1,15 @@
 "use client";
 
-import { useRef, ChangeEvent } from "react";
+import { useMemo, useRef, useState, ChangeEvent } from "react";
 import { Brand } from "./atoms/brand";
 import { NavDropdown } from "./atoms/navDropdown";
 import { NavItem } from "./atoms/navItem";
 import { useCodeContext } from "@/components/contexts/codeContext";
+import { Modal } from "@/components/global/modal";
+import { CodeStatus } from "@/components/CodeStatus/CodeStatus";
+import { SymbolTable } from "@/components/SymbolTable/SymbolTable";
+import { analyzeDataSection, analyzeSymbols } from "@/utils/analyzer";
+import { tokenizer } from "@/utils/tokenizer";
 
 const readFile = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -24,8 +29,16 @@ const readFile = (file: File): Promise<string> => {
 
 export const Navbar = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeAnalysis, setActiveAnalysis] = useState<
+    "symbols" | "codeStatus" | null
+  >(null);
 
-  const { setCode } = useCodeContext();
+  const { rawCode, setCode } = useCodeContext();
+  const codeStatuses = useMemo(
+    () => analyzeDataSection(tokenizer(rawCode)),
+    [rawCode],
+  );
+  const symbols = useMemo(() => analyzeSymbols(tokenizer(rawCode)), [rawCode]);
 
   const handleOpenClick = () => {
     fileInputRef.current?.click();
@@ -56,6 +69,22 @@ export const Navbar = () => {
           </NavItem>
         </NavDropdown>
 
+
+        <NavDropdown label="Análisis">
+          <NavItem
+            className="block w-full"
+            onClick={() => setActiveAnalysis("symbols")}
+          >
+            Análisis de símbolos
+          </NavItem>
+          <NavItem
+            className="block w-full"
+            onClick={() => setActiveAnalysis("codeStatus")}
+          >
+            Verificación de código
+          </NavItem>
+        </NavDropdown>
+
         {/* Input invisible para abrir el selector de archivos */}
         <input
           type="file"
@@ -65,6 +94,21 @@ export const Navbar = () => {
           className="hidden"
         />
       </div>
+      <Modal
+        isOpen={activeAnalysis !== null}
+        onClose={() => setActiveAnalysis(null)}
+      >
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          {activeAnalysis === "symbols"
+            ? "Tabla de símbolos"
+            : "Verificación de código"}
+        </h2>
+        {activeAnalysis === "symbols" ? (
+          <SymbolTable elements={symbols} />
+        ) : (
+          <CodeStatus elements={codeStatuses} />
+        )}
+      </Modal>
     </div>
   );
 };

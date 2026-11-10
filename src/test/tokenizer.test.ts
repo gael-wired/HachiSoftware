@@ -75,4 +75,41 @@ describe("Tokenizador", () => {
     expect(tokens[0].type).toBe("COMMENT");
     expect(tokens[0].value).toBe("; Hello world");
   });
+
+  it("reconoce instrucciones y directivas NASM usadas con io.inc", () => {
+    const tokens = tokenizer(
+      '%include "io.inc"\nsection .data\nsection .text\nglobal CMAIN\ncmp ecx, 1\njle fin\nimul eax, ecx\ndec ecx\njg ciclo\nxor eax, eax\nret\nGET_DEC 4, ebx\nPRINT_DEC 4, eax\nPRINT_STRING tFact\nNEWLINE',
+    );
+
+    expect(
+      tokens
+        .filter((token) =>
+          [
+            "DIRECTIVE",
+            "SECTION",
+            "MNEMONIC",
+            "RESERVED",
+          ].includes(token.type),
+        )
+        .map(({ value, type }) => [value.toUpperCase(), type]),
+    ).toEqual([
+      ["%INCLUDE", "DIRECTIVE"],
+      ["SECTION", "RESERVED"],
+      [".DATA", "SECTION"],
+      ["SECTION", "RESERVED"],
+      [".TEXT", "SECTION"],
+      ["GLOBAL", "RESERVED"],
+      ["CMP", "MNEMONIC"],
+      ["JLE", "MNEMONIC"],
+      ["IMUL", "MNEMONIC"],
+      ["DEC", "MNEMONIC"],
+      ["JG", "MNEMONIC"],
+      ["XOR", "MNEMONIC"],
+      ["RET", "MNEMONIC"],
+      ["GET_DEC", "RESERVED"],
+      ["PRINT_DEC", "RESERVED"],
+      ["PRINT_STRING", "RESERVED"],
+      ["NEWLINE", "RESERVED"],
+    ]);
+  });
 });
