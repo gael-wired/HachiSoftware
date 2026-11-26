@@ -52,6 +52,17 @@ export const dotDirective = [".MODEL"];
 
 export const dataDirective = ["DB", "DW", "DD", "DQ", "DT"];
 
-export const mnemonics = ["MOV", "ADD", "SUB"];
+// Instrucciones soportadas y cuántos operandos lleva cada una
+export const mnemonicOperands: Record<string, number> = {
+  MOV: 2,
+  ADD: 2,
+  SUB: 2,
+  SHR: 2,
+  OR: 2,
+  XOR: 2,
+  CMP: 2,
+};
+
+export const mnemonics = Object.keys(mnemonicOperands);
 
 export const registers = registers16b.concat(registers32b);
