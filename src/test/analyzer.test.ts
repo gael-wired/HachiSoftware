@@ -1,23 +1,63 @@
-import { analyze } from "@/utils/analyzer";
+import { analyze, type OperationStatus } from "@/utils/analyzer";
 
-describe("Analizador", () => {
-  const code = [
-    ".data segment",
-    ";add your data here!",
-    "var1 dw 10000",
-    "var2 dw 10000",
-    "var3 dw 10000",
-    "var4 10000 dw ;instruccion incorrecta",
-    "varFinal dw ?",
-    "lista BYTE 10,20,30,40",
-    "lista byte 0ah,20h,22h",
-    "ends",
-  ].join("\n");
+const DATA_SOURCE = `.data
+var1 dw 0xFFFF
+var2 db 255
+var3 dd 123456
+var4 10000 dw
+varFinal dw ?
+lista dw 128 dup(0)
+lista db 128 dup(0)
+ends`;
 
-  it("marca cada línea como Correcta o Incorrecta", () => {
-    const { lines } = analyze(code);
+const OPERATION_CONTEXT = `.data
+byteValue db 1
+wordValue dw 1
+dwordValue dd 1
+.text`;
 
-    expect(lines.map((l) => l.status)).toEqual([
+const VALID_OPERATIONS = [
+  "MOVZX EAX, byte [byteValue]",
+  "SUB EAX, 50",
+  "XOR EAX, 1",
+  "PUSH EAX",
+  "PUSH DWORD [dwordValue]",
+  "RET",
+];
+
+const INVALID_OPERATIONS = [
+  "MOVZX EAX, EBX",
+  "MOVZX AL, BL",
+  "MOVZX EAX, [byteValue]",
+  "SUB EAX, BL",
+  "SUB [byteValue], [wordValue]",
+  "SUB [unknownValue], 5",
+  "XOR EAX, [EBX-ECX]",
+  "PUSH AL",
+  "PUSH EAX, EBX",
+  "PUSH [byteValue]",
+  "PUSH DWORD [byteValue",
+  "RET EAX",
+];
+
+const analyzeOperations = (instructions: string[]) =>
+  analyze(`${OPERATION_CONTEXT}\n${instructions.join("\n")}`).operations;
+
+const expectAllOperationsToHaveStatus = (
+  instructions: string[],
+  status: OperationStatus,
+) => {
+  const results = analyzeOperations(instructions);
+
+  expect(results).toHaveLength(instructions.length);
+  expect(results.every((result) => result.status === status)).toBe(true);
+};
+
+describe("analyze", () => {
+  it("validates declarations and records their symbols", () => {
+    const result = analyze(DATA_SOURCE);
+
+    expect(result.lines.map(({ status }) => status)).toEqual([
       "Correcta",
       "Correcta",
       "Correcta",
@@ -28,85 +68,98 @@ describe("Analizador", () => {
       "Correcta",
       "Correcta",
     ]);
-  });
-
-  it("construye la tabla de símbolos con valor y tamaño", () => {
-    const { symbols } = analyze(code);
-
-    expect(symbols.map(({ name, value, size }) => ({ name, value, size }))).toEqual([
-      { name: "var1", value: "10000", size: "WORD" },
-      { name: "var2", value: "10000", size: "WORD" },
-      { name: "var3", value: "10000", size: "WORD" },
+    expect(
+      result.symbols.map(({ name, value, size }) => ({ name, value, size })),
+    ).toEqual([
+      { name: "var1", value: "0xFFFF", size: "WORD" },
+      { name: "var2", value: "255", size: "BYTE" },
+      { name: "var3", value: "123456", size: "DWORD" },
       { name: "varFinal", value: "?", size: "WORD" },
-      { name: "lista", value: "10,20,30,40", size: "BYTE" },
-      { name: "lista", value: "0ah,20h,22h", size: "BYTE" },
+      { name: "lista", value: "128dup(0)", size: "WORD" },
+      { name: "lista", value: "128dup(0)", size: "BYTE" },
     ]);
   });
 
-  it("no agrega a la tabla las líneas incorrectas", () => {
-    const { symbols } = analyze("var4 10000 dw");
-    expect(symbols).toEqual([]);
-  });
+  it.each([
+    ['mensaje db "texto de prueba"', '"texto de prueba"'],
+    ["datos dw 128 dup(0)", "128dup(0)"],
+  ])("accepts data values in declaration %s", (declaration, value) => {
+    const result = analyze(`.data\n${declaration}\nends`);
 
-  it("acepta dup sin nombre y reconoce instrucciones", () => {
-    const { lines } = analyze("dw 128 dup(0)\nMOV ax,val1");
-    expect(lines.every((l) => l.status === "Correcta")).toBe(true);
-  });
-
-  it("acepta las instrucciones de dos operandos", () => {
-    const programa = [
-      "sub ax,bx",
-      "shr ax,1",
-      "or ax,bx",
-      "xor ax,ax",
-      "cmp ax,bx",
-    ].join("\n");
-
-    const { lines } = analyze(programa);
-    expect(lines).toHaveLength(5);
-    expect(lines.every((l) => l.status === "Correcta")).toBe(true);
-  });
-
-  it("rechaza instrucciones con operandos de más o de menos", () => {
-    const { lines } = analyze("mov ax\nsub ax,bx,cx\nor ax,");
-
-    expect(lines.map((l) => l.status)).toEqual([
-      "Incorrecta",
-      "Incorrecta",
-      "Incorrecta",
+    expect(result.lines.map(({ status }) => status)).toEqual([
+      "Correcta",
+      "Correcta",
+      "Correcta",
     ]);
-    expect(lines[0].reason).toBe("MOV requiere 2 operandos, pero tiene 1");
-    expect(lines[1].reason).toBe("SUB requiere 2 operandos, pero tiene 3");
+    expect(result.symbols[0].value).toBe(value);
   });
 
-  it("no reconoce instrucciones que no están en la lista", () => {
-    const { lines } = analyze("ret\npush ax");
-    expect(lines.every((l) => l.status === "Incorrecta")).toBe(true);
-  });
-
-  it("usa las reglas del tokenizador para validar números y nombres", () => {
-    const { lines, symbols } = analyze(
-      [
-        "a db 0FFh",
-        "b dw 12zz",
-        "1var dw 5",
-        "c db 'Hola'",
-        "d dw -5",
-        "mov ax,12zz",
-      ].join("\n")
+  it("rejects malformed declarations without adding symbols", () => {
+    const result = analyze(
+      ".data\na db 0FFh\nbad dw 12zz\n1invalid db 1\nc db 'Hola'\nd dw -5\nends",
     );
 
-    expect(lines.map((l) => l.status)).toEqual([
-      "Correcta",
-      "Incorrecta",
-      "Incorrecta",
+    expect(result.lines.map(({ status }) => status)).toEqual([
       "Correcta",
       "Correcta",
       "Incorrecta",
+      "Incorrecta",
+      "Correcta",
+      "Correcta",
+      "Correcta",
     ]);
-    expect(lines[1].reason).toBe('Valor inválido: "12zz"');
-    expect(lines[2].reason).toBe('Nombre inválido: "1var"');
-    expect(lines[5].reason).toBe('Operando inválido: "12zz"');
-    expect(symbols.map((s) => s.value)).toEqual(["0FFh", "'Hola'", "-5"]);
+    expect(result.symbols.map(({ value }) => value)).toEqual([
+      "0FFh",
+      "'Hola'",
+      "-5",
+    ]);
   });
+
+  it("only analyzes declarations inside the data section", () => {
+    const result = analyze(
+      ".model flat,stdcall\n.data\nvar1 dw 1\n.code\nmain proc\nmov ax\nmain endp",
+    );
+
+    expect(result.lines.map(({ text }) => text)).toEqual([".data", "var1 dw 1"]);
+  });
+
+  it("removes comments and repeated spacing from displayed lines", () => {
+    const result = analyze(
+      ".data\n  mensaje    db    'dos  espacios'    ; comentario\nends",
+    );
+
+    expect(result.lines.map(({ text }) => text)).toEqual([
+      ".data",
+      "mensaje db 'dos  espacios'",
+      "ends",
+    ]);
+  });
+
+  it("accepts all valid operations", () => {
+    expectAllOperationsToHaveStatus(VALID_OPERATIONS, "Correcta");
+  });
+
+  it("rejects all invalid operations", () => {
+    expectAllOperationsToHaveStatus(INVALID_OPERATIONS, "Incorrecta");
+  });
+
+  it("reports warnings and leaves other mnemonics unimplemented", () => {
+    const warnings = analyzeOperations(["SUB AL, 300", "RET 70000"]);
+    const unimplemented = analyzeOperations(["ADD EAX, EBX"]);
+
+    expect(warnings).toHaveLength(2);
+    expect(warnings.every(({ status }) => status === "Aviso")).toBe(true);
+    expect(unimplemented).toHaveLength(1);
+    expect(unimplemented[0].status).toBe("No implementado");
+  });
+
+  it("ignores comments when analyzing operations", () => {
+    const result = analyzeOperations(["SUB EAX, EBX ; comentario"]);
+
+    expect(result[0]).toMatchObject({
+      text: "SUB EAX, EBX",
+      status: "Correcta",
+    });
+  });
+
 });

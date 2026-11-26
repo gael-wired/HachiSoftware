@@ -1,22 +1,31 @@
 "use client";
 
-import { useRef, ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Brand } from "./atoms/brand";
 import { NavDropdown } from "./atoms/navDropdown";
 import { NavItem } from "./atoms/navItem";
 import { useCodeContext } from "@/components/contexts/codeContext";
+import { Modal } from "@/components/global/modal";
+import { analyze } from "@/utils/analyzer";
+import {
+  AnalysisContent,
+  type AnalysisView,
+} from "@/components/lexicalView/analysisContent";
 
 const readFile = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onload = (event) => {
-      resolve((event.target?.result as string) ?? "");
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("El archivo no contiene texto legible."));
+        return;
+      }
+      resolve(reader.result);
     };
 
-    reader.onerror = (error) => {
-      reject(error);
-    };
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("No se pudo leer el archivo."));
 
     reader.readAsText(file);
   });
@@ -24,8 +33,12 @@ const readFile = (file: File): Promise<string> => {
 
 export const Navbar = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeAnalysis, setActiveAnalysis] = useState<AnalysisView | null>(
+    null,
+  );
 
-  const { setCode } = useCodeContext();
+  const { rawCode, setCode } = useCodeContext();
+  const analysis = useMemo(() => analyze(rawCode), [rawCode]);
 
   const handleOpenClick = () => {
     fileInputRef.current?.click();
@@ -56,7 +69,27 @@ export const Navbar = () => {
           </NavItem>
         </NavDropdown>
 
-        {/* Input invisible para abrir el selector de archivos */}
+        <NavDropdown label="Análisis">
+          <NavItem
+            className="block w-full"
+            onClick={() => setActiveAnalysis("symbols")}
+          >
+            Análisis de símbolos
+          </NavItem>
+          <NavItem
+            className="block w-full"
+            onClick={() => setActiveAnalysis("codeStatus")}
+          >
+            Verificación de código
+          </NavItem>
+          <NavItem
+            className="block w-full"
+            onClick={() => setActiveAnalysis("operations")}
+          >
+            Análisis de operaciones
+          </NavItem>
+        </NavDropdown>
+
         <input
           type="file"
           ref={fileInputRef}
@@ -65,6 +98,13 @@ export const Navbar = () => {
           className="hidden"
         />
       </div>
+      <Modal
+        isOpen={activeAnalysis !== null}
+        onClose={() => setActiveAnalysis(null)}
+        size={activeAnalysis === "operations" ? "wide" : "default"}
+      >
+        <AnalysisContent view={activeAnalysis} analysis={analysis} />
+      </Modal>
     </div>
   );
 };

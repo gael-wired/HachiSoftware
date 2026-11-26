@@ -1,57 +1,68 @@
 import type { SymbolEntry } from "@/utils/analyzer";
+import { AnalysisTableFrame } from "./analysisTableFrame";
 
 export const SymbolTable = ({ symbols }: { symbols: SymbolEntry[] }) => (
-  <section aria-labelledby="symbol-table-title" className="mt-6">
-    <h2 id="symbol-table-title" className="mb-2 text-base font-semibold">
-      Tabla de Símbolos
-    </h2>
+  <AnalysisTableFrame title="Análisis de símbolos">
+    <table className="w-full table-fixed border-collapse text-left text-sm text-stone-200">
+      <colgroup>
+        <col className="w-[24%]" />
+        <col className="w-[15%]" />
+        <col className="w-[43%]" />
+        <col className="w-[18%]" />
+      </colgroup>
+      <thead className="border-b border-sky-900/70 bg-stone-800 text-stone-300">
+        <tr>
+          <th scope="col" className="px-3 py-2.5 font-medium tracking-wide">
+            Símbolo
+          </th>
+          <th scope="col" className="px-3 py-2.5 font-medium tracking-wide">
+            Tipo
+          </th>
+          <th scope="col" className="px-3 py-2.5 font-medium tracking-wide">
+            Valor
+          </th>
+          <th scope="col" className="px-3 py-2.5 text-right font-medium tracking-wide">
+            Tamaño
+          </th>
+        </tr>
+      </thead>
 
-    <div className="overflow-x-auto rounded-md border border-stone-600">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead className="bg-stone-700/60 text-stone-300">
+      <tbody className="divide-y divide-stone-800/80">
+        {symbols.length === 0 ? (
           <tr>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Símbolo
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Tipo
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Valor
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Tamaño
-            </th>
+            <td
+              colSpan={4}
+              className="bg-stone-800/20 px-3 py-5 text-center text-stone-400"
+            >
+              <code className="font-mono text-sky-300">var1 dw 10000</code>
+            </td>
           </tr>
-        </thead>
-
-        <tbody className="divide-y divide-stone-700">
-          {symbols.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="px-3 py-4 text-stone-400">
-                <code>var1 dw 10000</code>.
+        ) : (
+          symbols.map((symbol) => (
+            <tr
+              key={`${symbol.name}-${symbol.line}`}
+              className="transition-colors odd:bg-stone-800/15 hover:bg-sky-950/35"
+            >
+              <td className="break-words px-3 py-2 font-medium text-sky-100">
+                {symbol.name}
+              </td>
+              <td className="break-words px-3 py-2 text-stone-400">
+                {symbol.kind}
+              </td>
+              <td className="px-3 py-2 align-middle">
+                <span className="inline-block max-w-full break-all rounded-sm border border-sky-900/70 bg-sky-950/60 px-2 py-0.5 font-mono text-xs text-sky-300">
+                  {symbol.value}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-right align-middle">
+                <span className="inline-block rounded-sm border border-sky-900/70 bg-sky-950/60 px-2 py-0.5 tabular-nums text-sky-300">
+                  {symbol.size}
+                </span>
               </td>
             </tr>
-          ) : (
-            symbols.map((s) => (
-              <tr key={`${s.name}-${s.line}`}>
-                <td className="px-3 py-2 font-medium">{s.name}</td>
-                <td className="px-3 py-2 text-stone-300">{s.kind}</td>
-                <td className="px-3 py-2">
-                  <span className="inline-block rounded px-3 py-0.5 outline-2 outline-black bg-violet-200 text-violet-950">
-                    {s.value}
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <span className="inline-block rounded px-3 py-0.5 outline-2 outline-black bg-sky-200 text-sky-950">
-                    {s.size}
-                  </span>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  </section>
+          ))
+        )}
+      </tbody>
+    </table>
+  </AnalysisTableFrame>
 );
